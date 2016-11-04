@@ -293,11 +293,10 @@ static int _allocate_platforms(int req) {
   RETURN(allocated - _num_picds);
 }
 
-static char* _malloc_clGetPlatformInfo(clGetPlatformInfo_fn plt_info_ptr,
-		 cl_platform_id pid, cl_platform_info cname, char* sname) {
+static char* _malloc_clGetPlatformInfo(cl_platform_id pid, cl_platform_info cname, char* sname) {
   cl_int error;
   size_t param_value_size_ret;
-  error = plt_info_ptr(pid, cname, 0, NULL, &param_value_size_ret);
+  error = pid->dispatch->clGetPlatformInfo(pid, cname, 0, NULL, &param_value_size_ret);
   if (error != CL_SUCCESS) {
     debug(D_WARN, "Error %s while requesting %s in platform %p",
 	  _clerror2string(error), sname, pid);
@@ -309,7 +308,7 @@ static char* _malloc_clGetPlatformInfo(clGetPlatformInfo_fn plt_info_ptr,
 	  sname, pid);
     return NULL;
   }
-  error = plt_info_ptr(pid, cname, param_value_size_ret, param_value, NULL);
+  error = pid->dispatch->clGetPlatformInfo(pid, cname, param_value_size_ret, param_value, NULL);
   if (error != CL_SUCCESS){
     free(param_value);
     debug(D_WARN, "Error %s while requesting %s in platform %p",
@@ -395,11 +394,7 @@ static inline void _find_and_check_platforms(cl_uint num_icds) {
     picd->ext_fn_ptr = _get_function_addr(dlh, NULL, "clGetExtensionFunctionAddress");
     clIcdGetPlatformIDsKHR_fn plt_fn_ptr =
       _get_function_addr(dlh, picd->ext_fn_ptr, "clIcdGetPlatformIDsKHR");
-    clGetPlatformInfo_fn plt_info_ptr =
-      _get_function_addr(dlh, picd->ext_fn_ptr,	"clGetPlatformInfo");
-    if( picd->ext_fn_ptr == NULL
-	|| plt_fn_ptr == NULL
-	|| plt_info_ptr == NULL) {
+    if( picd->ext_fn_ptr == NULL || plt_fn_ptr == NULL) {
       debug(D_WARN, "Missing symbols in ICD, skipping it");
       continue;
     }
@@ -446,7 +441,7 @@ static inline void _find_and_check_platforms(cl_uint num_icds) {
 	       */
 	      const char* str=getenv("OCL_ICD_ASSUME_ICD_EXTENSION");
 	      if (! str || str[0]==0) {
-		      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_EXTENSIONS, "extensions");
+		      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_EXTENSIONS, "extensions");
 		      if (param_value == NULL){
 			      debug(D_WARN, "Skipping platform %i", j);
 			      continue;
@@ -460,7 +455,7 @@ static inline void _find_and_check_platforms(cl_uint num_icds) {
 		      free(param_value);
 	      }
       }
-      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_ICD_SUFFIX_KHR, "suffix");
+      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_ICD_SUFFIX_KHR, "suffix");
       if (param_value == NULL){
 	debug(D_WARN, "Skipping platform %i", j);
         continue;
@@ -468,23 +463,23 @@ static inline void _find_and_check_platforms(cl_uint num_icds) {
       p->extension_suffix = param_value;
       debug(D_DUMP|D_LOG, "Extension suffix: %s", param_value);
 #ifdef DEBUG_OCL_ICD
-      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_PROFILE, "profile");
+      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_PROFILE, "profile");
       if (param_value != NULL){
         debug(D_DUMP, "Profile: %s", param_value);
 	free(param_value);
       }
-      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_VERSION, "version");
+      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_VERSION, "version");
       p->version = param_value;
       if (param_value != NULL){
         debug(D_DUMP, "Version: %s", param_value);
 	free(param_value);
       }
-      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_NAME, "name");
+      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_NAME, "name");
       if (param_value != NULL){
         debug(D_DUMP, "Name: %s", param_value);
 	free(param_value);
       }
-      param_value=_malloc_clGetPlatformInfo(plt_info_ptr, p->pid, CL_PLATFORM_VENDOR, "vendor");
+      param_value=_malloc_clGetPlatformInfo(p->pid, CL_PLATFORM_VENDOR, "vendor");
       if (param_value != NULL){
         debug(D_DUMP, "Vendor: %s", param_value);
 	free(param_value);
